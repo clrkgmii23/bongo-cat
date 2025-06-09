@@ -19,68 +19,99 @@ int App::MainLoop() {
 App::~App() {
 	// for images!!
 	for (size_t i = 0; i < RESOURCE_COUNT; i++)
-	{
-		if (graph.resources[i]) {
-			graph.resources[i]->Release();
-			graph.resources[i] = nullptr;
+		{
+			if (graph.resources[i]) {
+				graph.resources[i]->Release();
+				graph.resources[i] = nullptr;
+			}
 		}
-	}
 
 	if (graph.pRenderTarget)
 		graph.pRenderTarget->Release();
 	if (graph.pFactory)
 		graph.pFactory->Release();
-	if(graph.hdcMem) DeleteDC(graph.hdcMem);
+
+	// no idea what any of this is:
+	if (graph.hdcMem) DeleteDC(graph.hdcMem);
 	if (graph.hBitmap) DeleteObject(graph.hBitmap);
 	CoUninitialize();
 }
-// initialise both direct2d and some graphics variables
 HRESULT App::SetUpGraphics() {
+	if (graph.pRenderTarget) {
+		graph.pRenderTarget->Release();
+		graph.pRenderTarget = nullptr; 
+	}
 	if (graph.pFactory) {
 		graph.pFactory->Release();
 		graph.pFactory = nullptr;
 	}
-	if (graph.pRenderTarget) {
-		graph.pRenderTarget->Release();
-		graph.pRenderTarget = nullptr;
+	
+	if (graph.hBitmap) {
+		DeleteObject(graph.hBitmap);
+		graph.hBitmap = nullptr;
+	}
+	if (graph.hdcMem) {
+		DeleteDC(graph.hdcMem);
+		graph.hdcMem = nullptr;
 	}
 
 	HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &graph.pFactory);
 	if (FAILED(hr)) return hr;
 
-	// Get window size
 	RECT rc;
+	if (!graph.hwnd) {
+		return E_FAIL;
+	}
 	GetClientRect(graph.hwnd, &rc);
 	graph.clientRect = D2D1::RectF((FLOAT)rc.left, (FLOAT)rc.top, (FLOAT)rc.right, (FLOAT)rc.bottom);
 	graph.width = rc.right - rc.left;
 	graph.height = rc.bottom - rc.top;
 
-	// Create DIBSection (offscreen bitmap with alpha)
+	// If window is minimized or has zero size, we can't create resources, idk why :(
+	if (graph.width == 0 || graph.height == 0) {
+		return S_OK;
+	}
+
+	// basically all the code from here is not even mine :)
 	BITMAPINFO bmi = {};
 	bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
 	bmi.bmiHeader.biWidth = graph.width;
-	bmi.bmiHeader.biHeight = -graph.height; // top-down bitmap
+	bmi.bmiHeader.biHeight = -graph.height;
 	bmi.bmiHeader.biPlanes = 1;
 	bmi.bmiHeader.biBitCount = 32;
 	bmi.bmiHeader.biCompression = BI_RGB;
 
 	void* pBits = nullptr;
 	HDC hdcScreen = GetDC(NULL);
-	HDC hdcMem = CreateCompatibleDC(hdcScreen);
-	HBITMAP hBitmap = CreateDIBSection(hdcMem, &bmi, DIB_RGB_COLORS, &pBits, NULL, 0);
-	SelectObject(hdcMem, hBitmap);
+	graph.hdcMem = CreateCompatibleDC(hdcScreen);
+	if (!graph.hdcMem) {
+		ReleaseDC(NULL, hdcScreen);
+		return HRESULT_FROM_WIN32(GetLastError());
+	}
+	graph.hBitmap = CreateDIBSection(graph.hdcMem, &bmi, DIB_RGB_COLORS, &pBits, NULL, 0);
+	if (!graph.hBitmap) {
+		DeleteDC(graph.hdcMem); graph.hdcMem = nullptr;
+		ReleaseDC(NULL, hdcScreen);
+		return HRESULT_FROM_WIN32(GetLastError());
+	}
+	SelectObject(graph.hdcMem, graph.hBitmap);
 	ReleaseDC(NULL, hdcScreen);
 
-	graph.hdcMem = hdcMem;
-	graph.hBitmap = hBitmap;
-
-	// Create Direct2D render target for the HDC
 	D2D1_RENDER_TARGET_PROPERTIES props = D2D1::RenderTargetProperties(
 		D2D1_RENDER_TARGET_TYPE_DEFAULT,
 		D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
 	);
-
-	hr = graph.pFactory->CreateDCRenderTarget(&props, (ID2D1DCRenderTarget**)&graph.pRenderTarget);
+	// create the pRenderTarget
+	hr = graph.pFactory->CreateDCRenderTarget(&props, &graph.pRenderTarget);
+	if (FAILED(hr)) {
+		// clean up if failed
+		if (graph.hdcMem) { DeleteDC(graph.hdcMem); graph.hdcMem = nullptr; }
+		if (graph.hBitmap) { DeleteObject(graph.hBitmap); graph.hBitmap = nullptr; }
+	}
+	else {
+		// what???
+		((ID2D1DCRenderTarget*)graph.pRenderTarget)->BindDC(graph.hdcMem, &rc);
+	}
 	return hr;
 
 }
@@ -164,20 +195,21 @@ LRESULT App::HandleMessage(UINT uMSG, WPARAM wParam, LPARAM lParam) {
 		}
 		break;
 	}
-	// resize window, update variables assosiated with it
 	case WM_SIZE: {
-		// get new render target, and update screensize variables
-		RECT rc;
-		GetClientRect(graph.hwnd, &rc);
-		graph.clientRect = D2D1::Rect(rc.left, rc.top, rc.right, rc.bottom);
-		D2D1_SIZE_U screenSize = D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top);
-		graph.width = screenSize.width;
-		graph.height = screenSize.height;
+		// apparently this will get of the error when starting the app
+		if (!graph.hwnd) {
+			return 0;
+		}
 
-		graph.pRenderTarget->Resize(screenSize);
+		HRESULT hr = SetUpGraphics(); // this feels wrong but it works?
+		if (FAILED(hr)) {
+			HRError(L"Failed to resetup graphics on WM_SIZE");
+		}
 
-		InvalidateRect(graph.hwnd, NULL, TRUE);
+		InvalidateRect(graph.hwnd, NULL, TRUE); // request a repaint after resize for no jitter
 		break;
+
+
 	}
 	case WM_PAINT: {
 		PAINTSTRUCT ps;
@@ -186,7 +218,8 @@ LRESULT App::HandleMessage(UINT uMSG, WPARAM wParam, LPARAM lParam) {
 		OnPaint();
 		HRESULT hr = graph.pRenderTarget->EndDraw();
 		if (FAILED(hr)) {
-			HRError(L"End Draw is Failllinnng!! :((");
+			// for some reason this will always fail at first, just comment out the error :P
+			//HRError(L"End Draw is Failllinnng!! :((");
 			if (FAILED(SetUpGraphics())) {
 				HRError(L"SetUpGraphics FAILED in paint!!!");
 			}

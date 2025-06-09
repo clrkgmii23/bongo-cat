@@ -8,7 +8,7 @@
 struct graphics {
 	HWND hwnd;
 	ID2D1Factory* pFactory;
-	ID2D1HwndRenderTarget* pRenderTarget;
+	ID2D1DCRenderTarget* pRenderTarget;
 	D2D1_RECT_F clientRect;
 
 	HDC hdcMem;
@@ -60,7 +60,6 @@ public:
 		HWND parent = NULL,
 		HMENU menu = NULL) {
 		WNDCLASS window = { 0 };
-
 		window.lpfnWndProc = DERIVED::WindowProc;
 		window.hInstance = GetModuleHandle(NULL);
 		window.lpszClassName = ClassName();
