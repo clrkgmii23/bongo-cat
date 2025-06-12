@@ -6,6 +6,7 @@
 
 #include "BaseWindow.h"
 #include "utils.h"
+#include "Cat.h"
 
 PCWSTR App::ClassName() const { return L"APP WINDOW"; }
 int App::MainLoop() {
@@ -214,9 +215,8 @@ LRESULT App::HandleMessage(UINT uMSG, WPARAM wParam, LPARAM lParam) {
 	case WM_PAINT: {
 		PAINTSTRUCT ps;
 		BeginPaint(graph.hwnd, &ps);
-		graph.pRenderTarget->BeginDraw();
 		OnPaint();
-		HRESULT hr = graph.pRenderTarget->EndDraw();
+		HRESULT hr = 0;
 		if (FAILED(hr)) {
 			// for some reason this will always fail at first, just comment out the error :P
 			//HRError(L"End Draw is Failllinnng!! :((");
@@ -261,9 +261,21 @@ LRESULT App::HandleMessage(UINT uMSG, WPARAM wParam, LPARAM lParam) {
 		if (wParam == VK_ESCAPE) {
 			PostQuitMessage(0);
 		}
+		else if (wParam == VK_SPACE) {
+			graph.cat.ChangeState(LEFT_PAW, false);
+			graph.cat.ChangeState(RIGHT_PAW, false);
+		}
+		OnPaint();
 		return 0;
 	}
-
+	case WM_KEYUP: {
+		if (wParam == VK_SPACE) {
+			graph.cat.ChangeState(LEFT_PAW, true);
+			graph.cat.ChangeState(RIGHT_PAW, true);
+		}
+		OnPaint();
+		return 0;
+	}
 	default:
 		return DefWindowProc(hwnd, uMSG, wParam, lParam);
 	}
@@ -277,8 +289,82 @@ void App::OnStart() {
 	InvalidateRect(graph.hwnd, NULL, FALSE);
 	UpdateWindow(graph.hwnd);
 
-
+	graph.cat =	 Cat();
 }
+
+// seperate function for drawing the cat
+// it also has ton of smelly magic numbers
+void App::DrawCat() {
+	// draw body
+	D2D1_RECT_F sourceRec = D2D1::RectF(0, 225, 887, 597);
+	D2D1_RECT_F targetRec = D2D1::RectF(190, 78, 295, 187);
+	if (!graph.resources[0]) return;
+	graph.pRenderTarget->DrawBitmap(
+		graph.resources[0],
+		graph.clientRect,
+		1.0f,
+		D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
+		sourceRec
+	);
+	//// draw left paw
+	//// open
+	switch (graph.cat.isLeftPaw()) {
+		case true : {
+			sourceRec = D2D1::RectF(0, 0, 105, 109);
+			targetRec = D2D1::RectF(190, 78, 295, 187);
+			graph.pRenderTarget->DrawBitmap(
+				graph.resources[0],
+				targetRec,
+				1.0f,
+				D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
+				sourceRec
+			);
+			break;
+		}
+		case false: {
+			sourceRec = D2D1::RectF(123, 0, 248, 63);
+
+			targetRec = D2D1::RectF(194, 145, 315, 210);
+			graph.pRenderTarget->DrawBitmap(
+				graph.resources[0],
+				targetRec,
+				1.0f,
+				D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
+				sourceRec
+			);
+			break;
+		}
+	}
+	// closeed paw
+	switch (graph.cat.isRightPaw()) {
+		case true: {
+			sourceRec = D2D1::RectF(0, 109, 92, 224);
+			targetRec = D2D1::RectF(550, 160, 642, 275);
+			graph.pRenderTarget->DrawBitmap(
+				graph.resources[0],
+				targetRec,
+				1.0f,
+				D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
+				sourceRec
+			);
+			break;
+		}
+		case false: {
+			sourceRec = D2D1::RectF(125, 111, 231, 174);
+
+			targetRec = D2D1::RectF(537, 232, 645, 295);
+			graph.pRenderTarget->DrawBitmap(
+				graph.resources[0],
+				targetRec,
+				1.0f,
+				D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
+				sourceRec
+			);
+			break;
+		}
+	}
+}
+
 void App::OnPaint() {
 	RECT rc;
 	GetClientRect(graph.hwnd, &rc);
@@ -287,17 +373,13 @@ void App::OnPaint() {
 	((ID2D1DCRenderTarget*)graph.pRenderTarget)->BindDC(graph.hdcMem, &rc);
 
 	graph.pRenderTarget->BeginDraw();
-	graph.pRenderTarget->Clear(D2D1::ColorF(0, 0, 0, 0)); // transparent background
 
-	if (graph.resources[0]) {
-		graph.pRenderTarget->DrawBitmap(
-			graph.resources[0],
-			graph.clientRect,
-			1.0f,
-			D2D1_BITMAP_INTERPOLATION_MODE_LINEAR
-		);
-	}
+	// start of draw
+	graph.pRenderTarget->Clear(D2D1::ColorF(0,0));
+	DrawCat();
 
+
+	// end of draw
 	HRESULT hr = graph.pRenderTarget->EndDraw();
 	if (FAILED(hr)) {
 		SetUpGraphics();

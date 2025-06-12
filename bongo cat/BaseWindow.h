@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include <d2d1.h>
 #include "utils.h"
+#include "Cat.h"
 
 #define RESOURCE_COUNT 10
 // basic graphic elements for window
@@ -18,6 +19,8 @@ struct graphics {
 	int height;
 
 	ID2D1Bitmap* resources[RESOURCE_COUNT]; // buffer to store up to 10 images B). awful design!
+
+	Cat cat;
 };
 
 template <class DERIVED>
