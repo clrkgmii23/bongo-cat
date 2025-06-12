@@ -1,6 +1,6 @@
 #include "Cat.h"
 
-Cat::Cat() :state({ false, false }) {};
+Cat::Cat() :state({ true, true}) {};
 
 bool Cat::ChangeState(CatStates var, bool val) {
 	switch (var)
