@@ -7,16 +7,16 @@
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
 	if (FAILED(CoInitialize(NULL))) {
-		CErrorMessage(L"Could Initialize COM");
+		CErrorMessage(L"Could not Initialize COM");
 	}
 
 
 	App app;
-	if (!app.Create(L"Cool Ass Title", WS_POPUP,0,0, 887, 373)) {
+	if (!app.Create(L"cat", WS_POPUP,0,0, 887, 373)) {
 		return -1;
 	}
 	if (FAILED(app.SetUpGraphics())) {
-		HRError(L"SetUpGraphics Failure");
+		HRError(L"SetUpGraphics Failed");
 	}
 
 	ShowWindow(app.graph.hwnd, nCmdShow);

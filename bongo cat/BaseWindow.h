@@ -72,7 +72,7 @@ public:
 			HRError(L"RegisterClass Failed :(");
 			return FALSE;
 		}
-		hwnd = CreateWindowEx(WS_EX_LAYERED | WS_EX_TOPMOST, ClassName(), title, style,x, y,
+		hwnd = CreateWindowEx(WS_EX_LAYERED, ClassName(), title, style,x, y,
 			width, height, parent, menu, GetModuleHandle(NULL), this);
 		graph.hwnd = hwnd;
 		if (!hwnd) {

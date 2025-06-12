@@ -367,7 +367,7 @@ void App::DrawCat() {
 
 void App::OnPaint() {
 	RECT rc;
-	GetClientRect(graph.hwnd, &rc);
+ 	GetClientRect(graph.hwnd, &rc);
 
 	// Bind HDC to render target
 	((ID2D1DCRenderTarget*)graph.pRenderTarget)->BindDC(graph.hdcMem, &rc);
