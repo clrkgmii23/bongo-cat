@@ -1,7 +1,10 @@
 #pragma once
 #include <d2d1.h>
+#include <unordered_set>
 // some useful overloads
+D2D1_RECT_F operator*(const D2D1_RECT_F& rect, float val);
 
+D2D1_RECT_F operator*(float val, const D2D1_RECT_F& rect);
 // error messages
 void CErrorMessage(const wchar_t* str);
 void ErrorMessage(const wchar_t* str);
@@ -27,3 +30,5 @@ private:
 	MouseInput(const MouseInput&) = delete;
 	MouseInput& operator=(const MouseInput&) = delete;
 };
+// key sets
+bool isOnLeft(WPARAM key);

@@ -14,7 +14,7 @@ struct graphics {
 
 	HDC hdcMem;
 	HBITMAP hBitmap;
-
+	float sizeMultiplier = .5;
 	int width;
 	int height;
 

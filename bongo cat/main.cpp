@@ -12,6 +12,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
 
 	App app;
+	// image res: 887, 373
 	if (!app.Create(L"cat", WS_POPUP,0,0, 887, 373)) {
 		return -1;
 	}

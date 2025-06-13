@@ -11,6 +11,7 @@ public:
 	~App();
 	void OnPaint();
 	void DrawCat();
+	void DrawBodyPart(D2D1_RECT_F sourceRec, D2D1_RECT_F targetRec);
 	void OnStart();
 protected:
 	virtual PCWSTR ClassName() const;
