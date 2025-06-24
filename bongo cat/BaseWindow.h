@@ -14,7 +14,7 @@ struct graphics {
 
 	HDC hdcMem;
 	HBITMAP hBitmap;
-	float sizeMultiplier = .5;
+	float sizeMultiplier = .5; // <-- TODO: make this 1, don't forget future me!!
 	int width;
 	int height;
 
@@ -72,7 +72,8 @@ public:
 			HRError(L"RegisterClass Failed :(");
 			return FALSE;
 		}
-		hwnd = CreateWindowEx(WS_EX_LAYERED, ClassName(), title, style,x, y,
+		// TODO: REMEMBER TO REMOVE THE WS_EX_TOPMOST FROM THIS!
+		hwnd = CreateWindowEx(WS_EX_LAYERED| WS_EX_TOPMOST, ClassName(), title, style,x, y,
 			width, height, parent, menu, GetModuleHandle(NULL), this);
 		graph.hwnd = hwnd;
 		if (!hwnd) {

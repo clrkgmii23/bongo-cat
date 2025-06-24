@@ -8,7 +8,13 @@
 #include "utils.h"
 #include "Cat.h"
 
+App* App::instance = nullptr;
+App* App::GetInstance() {
+	return instance;
+}
+
 PCWSTR App::ClassName() const { return L"APP WINDOW"; }
+
 int App::MainLoop() {
 	MSG msg = {};
 	while (GetMessage(&msg, nullptr, NULL, NULL)) {
@@ -17,6 +23,9 @@ int App::MainLoop() {
 	}
 	return 0;
 }
+
+HHOOK keyboardHook = nullptr;
+
 App::~App() {
 	// for images!!
 	for (size_t i = 0; i < RESOURCE_COUNT; i++)
@@ -35,6 +44,10 @@ App::~App() {
 	// no idea what any of this is:
 	if (graph.hdcMem) DeleteDC(graph.hdcMem);
 	if (graph.hBitmap) DeleteObject(graph.hBitmap);
+
+	UnhookWindowsHookEx(keyboardHook);
+	keyboardHook = nullptr;
+
 	CoUninitialize();
 }
 HRESULT App::SetUpGraphics() {
@@ -253,39 +266,51 @@ LRESULT App::HandleMessage(UINT uMSG, WPARAM wParam, LPARAM lParam) {
 		MouseInput::SetDragging(false);
 		return 0;
 	}
-						// keyboard
-	case WM_KEYDOWN: {
-		if (wParam == VK_ESCAPE) {
-			PostQuitMessage(0);
-		}
-		if (isOnLeft(wParam)) {
-			graph.cat.ChangeState(LEFT_PAW, false);
-		}
-		else {
-			graph.cat.ChangeState(RIGHT_PAW, false);
-		}
-		OnPaint();
-		return 0;
-	}
-	case WM_KEYUP: {
-		if (isOnLeft(wParam)) {
-			graph.cat.ChangeState(LEFT_PAW, true);
-		}
-		else {
-			graph.cat.ChangeState(RIGHT_PAW, true);
-		}
-		OnPaint();
-		return 0;
-	}
 	default:
 		return DefWindowProc(hwnd, uMSG, wParam, lParam);
 	}
 	return TRUE;
 }
 
+LRESULT CALLBACK KeyboardProc(int MSG, WPARAM wParam, LPARAM lParam) {
+	if (MSG == HC_ACTION) {
+		KBDLLHOOKSTRUCT* pKB = (KBDLLHOOKSTRUCT*)lParam;
+
+		if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
+			if (pKB->vkCode == VK_ESCAPE) {
+				PostQuitMessage(0);
+			}
+			if (isOnLeft(pKB->vkCode)) {
+				App::GetInstance()->graph.cat.ChangeState(LEFT_PAW, false);
+			}
+			else {
+				App::GetInstance()->graph.cat.ChangeState(RIGHT_PAW, false);
+			}
+			InvalidateRect(App::GetInstance()->graph.hwnd, NULL, TRUE);
+		}
+		else if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP) {
+			if (isOnLeft(pKB->vkCode)) {
+				App::GetInstance()->graph.cat.ChangeState(LEFT_PAW, true);
+			}
+			else {
+				App::GetInstance()->graph.cat.ChangeState(RIGHT_PAW, true);
+			}
+			InvalidateRect(App::GetInstance()->graph.hwnd, NULL, TRUE);
+		}
+	}
+
+	return CallNextHookEx(keyboardHook, MSG, wParam, lParam);
+
+}
+
 // most useful code here
 void App::OnStart() {
+	instance = this;
 	LoadResources();
+	keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL,
+		KeyboardProc,
+		GetModuleHandle(NULL),
+		0);
 	OnPaint(); // <-- Manually force drawing before UpdateWindow
 	InvalidateRect(graph.hwnd, NULL, FALSE);
 	UpdateWindow(graph.hwnd);
@@ -327,7 +352,6 @@ void App::DrawCat() {
 		}
 		case false: {
 			sourceRec = D2D1::RectF(125, 111, 231, 174);
-
 			targetRec = D2D1::RectF(537, 232, 645, 295);
 			DrawBodyPart(sourceRec, targetRec);
 			break;
